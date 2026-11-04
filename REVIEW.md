@@ -33,6 +33,6 @@ The model was tested against `check_image.jpg` both inside the Google Colab PyTo
 
 Place a screenshot of the web application running on your mobile phone camera below:
 
-![Mobile Camera Test Screenshot](phone_screenshot.jpg)
+![Mobile Camera Test Screenshot](phone_screenshot.jpeg)
 
 *(Instructions: Open your deployed GitHub Pages URL on your smartphone, point the camera at a leaf or sample photo, take a screenshot, name it `phone_screenshot.jpg`, and place it in this repository).*
