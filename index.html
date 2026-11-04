@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Leaf Classifier — MobileNet ONNX</title>
+  <!-- ONNX Runtime Web -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.min.js"></script>
+  <style>
+    :root {
+      --primary: #10b981;
+      --primary-dark: #059669;
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    header {
+      text-align: center;
+      padding: 8px 0;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-top: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #fbbf24;
+    }
+
+    .status-dot.ready {
+      background: #10b981;
+    }
+
+    .status-dot.error {
+      background: #ef4444;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    /* Viewport Area */
+    .viewport-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .camera-container, .check-container {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #000;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #check-preview {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #111;
+    }
+
+    .camera-reticle {
+      position: absolute;
+      width: 65%;
+      height: 65%;
+      border: 2px dashed rgba(255, 255, 255, 0.7);
+      border-radius: 16px;
+      pointer-events: none;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      padding: 12px;
+      background: var(--card-bg);
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #334155;
+      color: var(--text);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Results */
+    .results-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .results-header h2 {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .perf-badge {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .class-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .class-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+
+    .class-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+    }
+
+    .class-pct {
+      font-family: monospace;
+      font-weight: 700;
+    }
+
+    .bar-bg {
+      height: 10px;
+      background: #334155;
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 0%;
+      border-radius: 9999px;
+      transition: width 0.25s ease-out;
+    }
+
+    .top-class .bar-fill {
+      background: #10b981;
+    }
+
+    .top-class .class-name {
+      color: #34d399;
+      font-weight: 700;
+    }
+
+    /* Comparison Box for check_image */
+    .comparison-box {
+      margin-top: 10px;
+      padding: 10px;
+      background: #0f172a;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 0.78rem;
+    }
+
+    .comparison-title {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .comp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: monospace;
+    }
+
+    .comp-table th, .comp-table td {
+      padding: 4px 6px;
+      text-align: left;
+    }
+
+    .comp-table th {
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .comp-table td:last-child, .comp-table th:last-child {
+      text-align: right;
+    }
+
+    .match-tag {
+      color: #10b981;
+      font-weight: 600;
+    }
+
+    canvas {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🌿 Leaf Classifier</h1>
+      <p>Fine-tuned MobileNet in PyTorch • ONNX Runtime Web</p>
+      <div class="status-badge" id="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Loading model...</span>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-camera-btn" onclick="switchTab('camera')">📷 Phone Camera</button>
+      <button class="tab-btn" id="tab-check-btn" onclick="switchTab('check')">🧪 Check Image Test</button>
+    </div>
+
+    <!-- Viewport Container -->
+    <div class="viewport-card">
+      <!-- Camera View -->
+      <div class="camera-container" id="camera-view">
+        <video id="webcam" playsinline autoplay muted></video>
+        <div class="camera-reticle"></div>
+      </div>
+
+      <!-- Check Image View -->
+      <div class="check-container" id="check-view" style="display: none;">
+        <img id="check-preview" src="check_image.jpg" alt="Check Image">
+      </div>
+
+      <!-- Controls -->
+      <div class="controls" id="camera-controls">
+        <button class="btn btn-primary" id="btn-camera" onclick="toggleCamera()">Start Camera</button>
+        <button class="btn btn-secondary" id="btn-switch-cam" onclick="switchCameraFacing()">Flip Camera</button>
+      </div>
+
+      <div class="controls" id="check-controls" style="display: none;">
+        <button class="btn btn-primary" onclick="runCheckVerification()">Verify check_image.jpg</button>
+        <label class="btn btn-secondary" style="margin:0;">
+          Upload Leaf
+          <input type="file" accept="image/*" style="display:none;" onchange="handleFileUpload(event)">
+        </label>
+      </div>
+    </div>
+
+    <!-- Predictions Card -->
+    <div class="results-card">
+      <div class="results-header">
+        <h2>Predictions</h2>
+        <span class="perf-badge" id="perf-text">— ms</span>
+      </div>
+
+      <div id="classes-list">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Notebook check comparison container -->
+      <div class="comparison-box" id="comparison-box" style="display: none;">
+        <div class="comparison-title">
+          <span>Verification against Notebook</span>
+          <span class="match-tag" id="match-status">✅ MATCH</span>
+        </div>
+        <table class="comp-table">
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th>Web ONNX</th>
+              <th>Notebook Expected</th>
+            </tr>
+          </thead>
+          <tbody id="comp-table-body">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Offscreen canvas for resizing / preprocessing -->
+  <canvas id="offscreen-canvas" width="96" height="96"></canvas>
+
+  <script>
+    const CLASSES = ["apple", "cherry", "chestnut", "maple"];
+    const EMOJIS = {
+      apple: "🍎",
+      cherry: "🍒",
+      chestnut: "🌰",
+      maple: "🍁"
+    };
+
+    let modelInfo = {
+      input_size: 96,
+      mean: [0.485, 0.456, 0.406],
+      std: [0.229, 0.224, 0.225]
+    };
+
+    let checkExpected = null;
+    let ortSession = null;
+    let videoStream = null;
+    let isClassifying = false;
+    let currentFacingMode = "environment";
+    let activeTab = "camera";
+
+    const video = document.getElementById("webcam");
+    const canvas = document.getElementById("offscreen-canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const statusText = document.getElementById("status-text");
+    const statusDot = document.getElementById("status-dot");
+    const perfText = document.getElementById("perf-text");
+    const classesList = document.getElementById("classes-list");
+
+    // Initialize UI
+    function initUI() {
+      classesList.innerHTML = CLASSES.map(cls => `
+        <div class="class-row" id="row-${cls}">
+          <div class="class-label-row">
+            <span class="class-name">${EMOJIS[cls] || "🍃"} ${cls.toUpperCase()}</span>
+            <span class="class-pct" id="pct-${cls}">0.0%</span>
+          </div>
+          <div class="bar-bg">
+            <div class="bar-fill" id="bar-${cls}"></div>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    // Load Model and Info
+    async function init() {
+      initUI();
+
+      try {
+        // Load model_info.json
+        try {
+          const infoRes = await fetch("model_info.json");
+          if (infoRes.ok) {
+            modelInfo = await infoRes.json();
+          }
+        } catch (e) {
+          console.warn("Could not fetch model_info.json, using defaults", e);
+        }
+
+        // Load check_expected.json
+        try {
+          const expRes = await fetch("check_expected.json");
+          if (expRes.ok) {
+            checkExpected = await expRes.json();
+          }
+        } catch (e) {
+          console.warn("Could not fetch check_expected.json", e);
+        }
+
+        // Initialize ONNX Runtime session
+        statusText.textContent = "Loading ONNX model...";
+        ortSession = await ort.InferenceSession.create("./leaf_model.onnx", {
+          executionProviders: ["webgl", "wasm"]
+        });
+
+        statusText.textContent = "Model Ready";
+        statusDot.classList.add("ready");
+        document.getElementById("btn-camera").disabled = false;
+
+        // Auto verify check image initially
+        runCheckVerification(false);
+      } catch (err) {
+        console.error("Initialization error:", err);
+        statusText.textContent = "Error: " + err.message;
+        statusDot.classList.add("error");
+      }
+    }
+
+    // Tab Switching
+    function switchTab(tab) {
+      activeTab = tab;
+      const cameraView = document.getElementById("camera-view");
+      const checkView = document.getElementById("check-view");
+      const cameraControls = document.getElementById("camera-controls");
+      const checkControls = document.getElementById("check-controls");
+      const tabCameraBtn = document.getElementById("tab-camera-btn");
+      const tabCheckBtn = document.getElementById("tab-check-btn");
+      const compBox = document.getElementById("comparison-box");
+
+      if (tab === "camera") {
+        cameraView.style.display = "flex";
+        checkView.style.display = "none";
+        cameraControls.style.display = "flex";
+        checkControls.style.display = "none";
+        tabCameraBtn.classList.add("active");
+        tabCheckBtn.classList.remove("active");
+        compBox.style.display = "none";
+      } else {
+        cameraView.style.display = "none";
+        checkView.style.display = "flex";
+        cameraControls.style.display = "none";
+        checkControls.style.display = "flex";
+        tabCameraBtn.classList.remove("active");
+        tabCheckBtn.classList.add("active");
+        stopCamera();
+        runCheckVerification();
+      }
+    }
+
+    // Camera Controls
+    async function toggleCamera() {
+      const btn = document.getElementById("btn-camera");
+      if (videoStream) {
+        stopCamera();
+        btn.textContent = "Start Camera";
+        btn.classList.add("btn-primary");
+        btn.classList.remove("btn-secondary");
+      } else {
+        await startCamera();
+        btn.textContent = "Stop Camera";
+        btn.classList.remove("btn-primary");
+        btn.classList.add("btn-secondary");
+      }
+    }
+
+    async function startCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Camera API is not supported in this browser or requires HTTPS.");
+        return;
+      }
+      try {
+        if (videoStream) {
+          videoStream.getTracks().forEach(track => track.stop());
+        }
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: currentFacingMode,
+            width: { ideal: 640 },
+            height: { ideal: 640 }
+          },
+          audio: false
+        });
+        video.srcObject = videoStream;
+        video.onloadedmetadata = () => {
+          video.play();
+          isClassifying = true;
+          requestAnimationFrame(classifyFrameLoop);
+        };
+      } catch (err) {
+        console.error("Camera access failed:", err);
+        alert("Could not access camera: " + err.message);
+      }
+    }
+
+    function stopCamera() {
+      isClassifying = false;
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+        video.srcObject = null;
+      }
+      const btn = document.getElementById("btn-camera");
+      if (btn) {
+        btn.textContent = "Start Camera";
+        btn.classList.add("btn-primary");
+        btn.classList.remove("btn-secondary");
+      }
+    }
+
+    async function switchCameraFacing() {
+      currentFacingMode = currentFacingMode === "environment" ? "user" : "environment";
+      if (videoStream) {
+        await startCamera();
+      }
+    }
+
+    // Preprocessing & Inference
+    function preprocess(imageSource) {
+      const size = modelInfo.input_size || 96;
+      canvas.width = size;
+      canvas.height = size;
+
+      // Draw center crop or scaled to 96x96
+      let sWidth = imageSource.videoWidth || imageSource.naturalWidth || imageSource.width;
+      let sHeight = imageSource.videoHeight || imageSource.naturalHeight || imageSource.height;
+      let minDim = Math.min(sWidth, sHeight);
+      let sx = (sWidth - minDim) / 2;
+      let sy = (sHeight - minDim) / 2;
+
+      ctx.drawImage(imageSource, sx, sy, minDim, minDim, 0, 0, size, size);
+      const imgData = ctx.getImageData(0, 0, size, size).data;
+
+      const numPixels = size * size;
+      const floatData = new Float32Array(3 * numPixels);
+      const mean = modelInfo.mean || [0.485, 0.456, 0.406];
+      const std = modelInfo.std || [0.229, 0.224, 0.225];
+
+      for (let i = 0; i < numPixels; i++) {
+        const r = imgData[i * 4] / 255.0;
+        const g = imgData[i * 4 + 1] / 255.0;
+        const b = imgData[i * 4 + 2] / 255.0;
+
+        // Planar NCHW format
+        floatData[i] = (r - mean[0]) / std[0]; // R
+        floatData[numPixels + i] = (g - mean[1]) / std[1]; // G
+        floatData[2 * numPixels + i] = (b - mean[2]) / std[2]; // B
+      }
+
+      return new ort.Tensor("float32", floatData, [1, 3, size, size]);
+    }
+
+    function softmax(logits) {
+      const maxLogit = Math.max(...logits);
+      const scores = logits.map(l => Math.exp(l - maxLogit));
+      const sum = scores.reduce((a, b) => a + b, 0);
+      return scores.map(s => s / sum);
+    }
+
+    async function runInference(sourceElement) {
+      if (!ortSession) return null;
+
+      const t0 = performance.now();
+      const inputTensor = preprocess(sourceElement);
+      const inputName = ortSession.inputNames[0];
+      const feeds = {};
+      feeds[inputName] = inputTensor;
+
+      const results = await ortSession.run(feeds);
+      const outputName = ortSession.outputNames[0];
+      const rawOutput = Array.from(results[outputName].data);
+
+      // Check if already softmaxed (sums close to 1 and all >= 0)
+      const sum = rawOutput.reduce((a, b) => a + b, 0);
+      const allPositive = rawOutput.every(x => x >= 0);
+      let probs = (Math.abs(sum - 1.0) < 0.05 && allPositive) ? rawOutput : softmax(rawOutput);
+
+      const inferenceTime = Math.round(performance.now() - t0);
+      return { probs, inferenceTime };
+    }
+
+    function updatePredictionsUI(probs, inferenceTime) {
+      perfText.textContent = `${inferenceTime} ms`;
+      let maxIdx = 0;
+      for (let i = 1; i < probs.length; i++) {
+        if (probs[i] > probs[maxIdx]) maxIdx = i;
+      }
+
+      CLASSES.forEach((cls, idx) => {
+        const row = document.getElementById(`row-${cls}`);
+        const pctElem = document.getElementById(`pct-${cls}`);
+        const barElem = document.getElementById(`bar-${cls}`);
+        const p = probs[idx];
+        const pctString = (p * 100).toFixed(1) + "%";
+
+        pctElem.textContent = pctString;
+        barElem.style.width = (p * 100) + "%";
+
+        if (idx === maxIdx) {
+          row.classList.add("top-class");
+        } else {
+          row.classList.remove("top-class");
+        }
+      });
+    }
+
+    // Real-time camera loop
+    let lastInferenceTime = 0;
+    async function classifyFrameLoop(timestamp) {
+      if (!isClassifying || activeTab !== "camera") return;
+
+      if (timestamp - lastInferenceTime > 150) { // ~6 fps to avoid overheating
+        lastInferenceTime = timestamp;
+        try {
+          const res = await runInference(video);
+          if (res) {
+            updatePredictionsUI(res.probs, res.inferenceTime);
+          }
+        } catch (e) {
+          console.error("Frame inference error:", e);
+        }
+      }
+      requestAnimationFrame(classifyFrameLoop);
+    }
+
+    // Verification Mode for check_image.jpg
+    async function runCheckVerification(showNotice = true) {
+      const img = document.getElementById("check-preview");
+      if (!img.complete) {
+        await new Promise(r => img.onload = r);
+      }
+
+      try {
+        const res = await runInference(img);
+        if (!res) return;
+
+        updatePredictionsUI(res.probs, res.inferenceTime);
+
+        // Render notebook comparison
+        const compBox = document.getElementById("comparison-box");
+        const compBody = document.getElementById("comp-table-body");
+        const matchStatus = document.getElementById("match-status");
+        compBox.style.display = "block";
+
+        let maxDiff = 0;
+        compBody.innerHTML = CLASSES.map((cls, idx) => {
+          const webProb = res.probs[idx];
+          const expProb = checkExpected ? (checkExpected[cls] || 0) : null;
+          if (expProb !== null) {
+            maxDiff = Math.max(maxDiff, Math.abs(webProb - expProb));
+          }
+          return `
+            <tr>
+              <td><strong>${EMOJIS[cls]} ${cls}</strong></td>
+              <td>${(webProb * 100).toFixed(3)}%</td>
+              <td>${expProb !== null ? (expProb * 100).toFixed(3) + "%" : "N/A"}</td>
+            </tr>
+          `;
+        }).join("");
+
+        if (maxDiff < 0.05) {
+          matchStatus.textContent = "✅ VERIFIED MATCH";
+          matchStatus.style.color = "#10b981";
+        } else {
+          matchStatus.textContent = `⚠️ DIFF (${(maxDiff * 100).toFixed(1)}%)`;
+          matchStatus.style.color = "#f59e0b";
+        }
+      } catch (err) {
+        console.error("Verification error:", err);
+        if (showNotice) alert("Verification failed: " + err.message);
+      }
+    }
+
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = document.getElementById("check-preview");
+        img.src = e.target.result;
+        img.onload = () => runCheckVerification();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    window.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+</html>
