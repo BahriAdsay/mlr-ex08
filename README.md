@@ -3,8 +3,8 @@
 A deep learning leaf classifier fine-tuned in PyTorch using MobileNet, exported to ONNX, and deployed to run entirely in the browser using ONNX Runtime Web.
 
 ## 📱 Live Demo (GitHub Pages)
-👉 **[Open Live App on your Phone](https://<YOUR-GITHUB-USERNAME>.github.io/mlr-ex08/)**  
-*(Replace `<YOUR-GITHUB-USERNAME>` with your GitHub username)*
+👉 **[Open Live App on your Phone](https://bahriadsay.github.io/mlr-ex08/)**  
+
 
 ---
 
